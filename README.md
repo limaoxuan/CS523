@@ -215,6 +215,14 @@ CHECK ENV
 
 jps
 
+9168 Jps
+24930 HMaster
+25091 HRegionServer
+2788 DataNode
+5814 QuorumPeerMain
+6423 Kafka
+2969 SecondaryNameNode
+2637 NameNode
 
 
 
