@@ -257,6 +257,9 @@ src/main/scala/KafkaProducerApp is for generating mock data and send data to kaf
 ```
 
 
+Part4 video
+https://web.microsoftstream.com/video/5059ab95-de7b-4f9b-b51b-c1ada5ed0a23
+
 
 
 
