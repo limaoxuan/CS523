@@ -213,6 +213,7 @@ cd $HBASE_HOME/bin
 
 CHECK ENV
 
+```
 jps
 
 9168 Jps
@@ -223,7 +224,7 @@ jps
 6423 Kafka
 2969 SecondaryNameNode
 2637 NameNode
-
+```
 
 
 
