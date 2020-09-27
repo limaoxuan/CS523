@@ -215,7 +215,7 @@ CHECK ENV
 
 jps
 
-![image-20200927234648827](/Users/lee/Library/Application Support/typora-user-images/image-20200927234648827.png)
+
 
 
 
