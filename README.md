@@ -1,5 +1,25 @@
 # CS523
 
+### Video 
+
+### https://web.microsoftstream.com/video/5059ab95-de7b-4f9b-b51b-c1ada5ed0a23
+
+
+
+### All the i/p and o/p files for your project
+
+![image](https://github.com/limaoxuan/CS523/blob/master/hbase1.png)
+
+![image](https://github.com/limaoxuan/CS523/blob/master/hbase2.png)
+
+
+
+### SOURCE CODE
+
+https://github.com/limaoxuan/CS523/tree/master/bigdataprocessing
+
+
+
 ### SET UP ENV
 
 DOWNLOAD ENV
@@ -256,9 +276,6 @@ Part3
 src/main/scala/KafkaProducerApp is for generating mock data and send data to kafka
 ```
 
-
-Part4 video
-https://web.microsoftstream.com/video/5059ab95-de7b-4f9b-b51b-c1ada5ed0a23
 
 
 
