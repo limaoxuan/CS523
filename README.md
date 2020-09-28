@@ -216,7 +216,7 @@ cd $KAFKA_HOME/bin
 
 
 
-./kafka-topics.sh --create --zookeeper hadoop1:2081  --topic MyOrder --partitions 1 --replication-factor 1
+./kafka-topics.sh --create --zookeeper hadoop1:2081  --topic mytopic --partitions 1 --replication-factor 1
 
 
 ```
@@ -260,10 +260,172 @@ jps
 
 
 
+### EXPLANING THE DETAILS OF PARTS
+
  Part 1 && part2
 
-```
+```scala
 src/main/scala/StreamingApp is that spark streaming process data from kafka, and then processing data store in hbase
+
+
+
+// application run entrance
+  def main(args: Array[String]): Unit = {
+
+    val conf = new Configuration()
+    
+    // set up env for connecting hbase
+    conf.set("hbase.rootdir", "hdfs://hadoop001:8020/hbase")
+    conf.set("hbase.zookeeper.quorum", "hadoop001:2181")
+    val tableName = "MyOrder"
+    // create table if it is not exist
+    createTable(tableName, conf)
+    conf.set(TableInputFormat.INPUT_TABLE, tableName)
+
+
+    // setting spark env
+    val sparkConf = new SparkConf().setMaster("local[2]").setAppName("StreamingApp")
+    val ssc = new StreamingContext(sparkConf, Seconds(5))
+
+    // kafaka and spark streamning setting
+    val stream = KafkaUtils.createDirectStream(ssc,
+      LocationStrategies.PreferConsistent,
+      ConsumerStrategies.Subscribe[String, String](ParamsConf.topic, ParamsConf.kafkaParams)
+    )
+
+    // print receving data
+    stream.map(x=>x.value()).print(10)
+
+    
+    // process data
+    stream.foreachRDD(rdd => {
+      // flag fee time
+      println(rdd)
+      val data = rdd.map(x => JSON.parseObject(x.value()))
+      println(data)
+//      data.cache()
+      data.map(x => {
+        //                val time = x.getString()
+        println(x)
+        val flag = x.getString("flag")
+        println("flag")
+        println(flag)
+        
+        // if flag is one which mean it is paid and put into table
+        if (flag == "1") {
+          put(tableName, x)
+        }
+      })
+
+//      stream.map(x=>JSON.parseObject(x.value())).print()
+      //
+//            data.unpersist(true)
+
+    }
+    )
+
+    //    println(value)
+
+    // start spark stream
+    ssc.start()
+    ssc.awaitTermination()
+  }
+  
+  
+  
+  
+  // put table into hbase
+    def put(tableName: String, map: JSONObject): Unit = {
+    println(map)
+    val conf = new Configuration()
+    conf.set("hbase.rootdir", "hdfs://hadoop001:8020/hbase")
+    conf.set("hbase.zookeeper.quorum", "hadoop001:2181")
+    conf.set(TableInputFormat.INPUT_TABLE, tableName)
+    println("put put put")
+    val table = tableName;
+
+    var connection: Connection = null
+    var admin: Admin = null
+    var myTable: Table = null
+    try {
+      connection = ConnectionFactory.createConnection(conf)
+      admin = connection.getAdmin
+
+
+      val tableName = TableName.valueOf(table)
+      //     val map = JSON.parseObject(jsonStr)
+      myTable = connection.getTable(tableName)
+      val orderId = map.getString("orderId");
+      val time = map.getString("time");
+      val free = map.getString("fee");
+      val courseId = map.getString("courseId");
+      val userId = map.getString("userId");
+      println("fr")
+      println(map)
+      println(orderId)
+
+      val put = new Put(Bytes.toBytes(orderId))
+
+      put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("time"), Bytes.toBytes(time))
+      put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("free"), Bytes.toBytes(free))
+      put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("courseId"), Bytes.toBytes(courseId))
+      put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("userId"), Bytes.toBytes(userId))
+
+      myTable.put(put)
+
+    } catch {
+      case e: Exception => e.printStackTrace()
+    } finally {
+      if (null != admin) {
+        admin.close()
+      }
+
+      if (null != connection) {
+        connection.close()
+      }
+
+      if (null != myTable) {
+        myTable.close()
+      }
+    }
+  }
+  // create table in hbase
+   def createTable(tableName: String, conf: Configuration): Unit = {
+    val table = tableName;
+
+
+    var connection: Connection = null
+    var admin: Admin = null
+    try {
+      connection = ConnectionFactory.createConnection(conf)
+      admin = connection.getAdmin
+
+
+      val tableName = TableName.valueOf(table)
+      if (admin.tableExists(tableName)) {
+        return
+      }
+
+      val tableDesc = new HTableDescriptor(TableName.valueOf(table))
+      val columnDescRowKey = new HColumnDescriptor("row_key")
+      val columnDescInfo = new HColumnDescriptor("info")
+      tableDesc.addFamily(columnDescRowKey)
+      tableDesc.addFamily(columnDescInfo)
+      admin.createTable(tableDesc)
+    } catch {
+      case e: Exception => e.printStackTrace()
+    } finally {
+      if (null != admin) {
+        admin.close()
+      }
+
+      if (null != connection) {
+        connection.close()
+      }
+    }
+
+
+  }
 ```
 
 
@@ -274,6 +436,51 @@ Part3
 
 ```scala
 src/main/scala/KafkaProducerApp is for generating mock data and send data to kafka
+
+
+def main(args: Array[String]): Unit = {
+
+    val props = new Properties
+    props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    props.put("bootstrap.servers", "192.168.8.178:9092")
+    props.put("request.required.acks", "1")
+
+    val topic = ParamsConf.topic
+    val producer = new KafkaProducer[String, String](props)
+
+    val random = new Random()
+    val dateFormat = FastDateFormat.getInstance("yyyyMMddHHmmss")
+
+  // set mock data as real data
+    for (i <- 1 to 10) {
+      val time = dateFormat.format(new Date()) + ""
+      val userid = random.nextInt(1000) + ""
+      val courseid = random.nextInt(500) + ""
+      val fee = random.nextInt(400) + ""
+      val result = Array("0", "1") // 0未成功支付，1成功支付
+      val flag = result(random.nextInt(2))
+      var orderid = UUID.randomUUID().toString
+
+      val map = new util.HashMap[String, Object]()
+      map.put("time", time)
+      map.put("userId", userid)
+      map.put("courseId", courseid)
+      map.put("fee", fee)
+      map.put("flag", flag)
+      map.put("orderId", orderid)
+
+      val json = new JSONObject(map)
+
+      // send those data send into kafaka with mytopic 
+      producer.send(new ProducerRecord[String, String]("mytopic", json + ""))
+
+      put("MyOrder",json)
+    }
+  }
+
+
+
 ```
 
 
